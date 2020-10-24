@@ -19,6 +19,7 @@ criterion = 'ESR'
 rand_prob = False
 episodes = 10000
 
+# ['game1', 'game2', 'game3', 'game4', 'game5']
 for game in ['game1', 'game2', 'game3', 'game4', 'game5']:
     for opt_init in [False]:  # [True, False]:
         path_data = f'data/{criterion}/{game}'

@@ -5,7 +5,7 @@ from scipy.optimize import minimize
 
 class QLearnerESR:
     """
-    This class represents an agent that uses the SER optimisation criterion.
+    This class represents an agent that uses the ESR optimisation criterion.
     """
 
     def __init__(self, agent_id, alpha, gamma, epsilon, num_states, num_actions, num_objectives, opt=False,
@@ -17,12 +17,12 @@ class QLearnerESR:
         self.num_states = num_states
         self.num_actions = num_actions
         self.num_objectives = num_objectives
-        self.joint_table = np.zeros((num_actions, num_actions))
+        self.payoffs_table = np.zeros((num_actions, num_actions))
         # optimistic initialization of Q-table
         if opt:
-            self.q_table = np.ones((num_states, num_actions)) * 20
+            self.q_table = np.ones(num_states) * 20
         else:
-            self.q_table = np.zeros((num_states, num_actions))
+            self.q_table = np.zeros(num_states)
         self.current_state = -1
         self.rand_prob = rand_prob
 
@@ -34,28 +34,43 @@ class QLearnerESR:
         :param reward: The reward obtained by this agent.
         :return: /
         """
-        old_q = self.q_table[prev_state][action]
+        old_q = self.q_table[prev_state]
         utility = calc_utility(self.agent_id, reward)
         new_q = old_q + self.alpha * (utility - old_q)
-        self.q_table[prev_state][action] = new_q
+        self.q_table[prev_state] = new_q
 
-    def update_joint_table(self, actions, payoffs):
+    def update_payoffs_table(self, actions, payoffs):
         """
-        Log the payoff vector of a joint action in the joint table.
+        Log the payoff vector of a joint action in the payoffs table.
         :param actions: The joint action.
         :param payoffs: The multi-objective payoff vector.
         :return: /
         """
         coords = tuple(actions)
         utility = calc_utility(self.agent_id, payoffs)
-        self.joint_table[coords] = utility
+        self.payoffs_table[coords] = utility
 
-    def pref_joint_action(self):
+    def select_publish_action(self):
         """
-        This method will calculate the preferred joint-action for an agent based on the payoffs of joint actions.
-        :return: The joint action that will result in the highest utility for the agent.
+        This method will determine what action this agent will publish.
+        :return: The action that will maximise this agent's ESR, given that the other agent also maximises its response.
         """
-        return np.argmax(self.joint_table)
+        if random.uniform(0.0, 1.0) < self.epsilon:
+            return self.select_random_action()
+        else:
+            return np.argmax(self.q_table)
+
+    def select_counter_action(self, state):
+        """
+        This method will perform epsilon greedy action selection.
+        :param state: The message from an agent in the form of their preferred joint action.
+        :return: The selected action.
+        """
+        self.current_state = state
+        if random.uniform(0.0, 1.0) < self.epsilon:
+            return self.select_random_action()
+        else:
+            return self.select_action_greedy()
 
     def select_random_action(self):
         """
@@ -65,80 +80,25 @@ class QLearnerESR:
         random_action = np.random.randint(self.num_actions)
         return random_action
 
-    def select_action_mixed_nonlinear(self, state):
+    def select_action_greedy(self):
         """
-        This method will perform epsilon greedy search based on nonlinear optimiser mixed strategy.
-        :param state: The message from an agent in the form of their preferred joint action.
+        This method will select the action that will result in the highest utility for the agent.
         :return: The selected action.
         """
-        self.current_state = state
-        if random.uniform(0.0, 1.0) < self.epsilon:
-            return self.select_random_action()
-        else:
-            return self.select_action_greedy_mixed_nonlinear(state)
+        if self.agent_id == 0:  # Row player
+            array = self.payoffs_table[:, self.current_state]  # Select the column from which we can pick an action
+        else:  # Column player
+            array = self.payoffs_table[self.current_state]  # Select the row from which we can pick an action
+        return np.argmax(array)
 
-    def select_action_greedy_mixed_nonlinear(self, state):
+    @staticmethod
+    def select_published_action(state):
         """
-        This method will perform greedy action selection based on nonlinear optimiser mixed strategy search.
-        :param state: The preferred joint action.
-        :return: The selected action.
+        This method simply plays the action that it already published.
+        :param state: The action it published.
+        :return: The action it published.
         """
-        strategy = self.calc_mixed_strategy_nonlinear()
-        if isinstance(strategy, int) or isinstance(strategy, np.int64):
-            return strategy
-        else:
-            if np.sum(strategy) != 1:
-                strategy = strategy / np.sum(strategy)
-            return np.random.choice(range(self.num_actions), p=strategy)
-
-    def calc_mixed_strategy_nonlinear(self):
-        """
-        This method will calculate a mixed strategy based on the nonlinear optimization.
-        :param state: The preferred joint action.
-        :return: A mixed strategy.
-        """
-        if self.rand_prob:
-            s0 = np.random.random(self.num_actions)
-            s0 /= np.sum(s0)
-        else:
-            s0 = np.full(self.num_actions, 1.0 / self.num_actions)  # initial guess set to equal prob over all actions
-
-        b = (0.0, 1.0)
-        bnds = (b,) * self.num_actions  # Each pair in x will have this b as min, max
-        con1 = {'type': 'eq', 'fun': lambda x: np.sum(x) - 1}
-        cons = ([con1])
-        solution = minimize(self.objective, s0, bounds=bnds, constraints=cons)
-        strategy = solution.x
-
-        return strategy
-
-    def objective(self, strategy):
-        """
-        This method is the objective function to be minimised by the nonlinear optimiser.
-        Therefore it returns the negative of ESR.
-        :param strategy: The mixed strategy for the agent.
-        :return: The ESR.
-        """
-        return - self.calc_esr_from_strategy(strategy)
-
-    def calc_esr_from_strategy(self, strategy):
-        """
-        This method will calculate the ESR from a mixed strategy.
-        :param strategy: The mixed strategy.
-        :return: The ESR.
-        """
-        esr = self.calc_esr(self.current_state, strategy)
-        return esr
-
-    def calc_esr(self, state, strategy):
-        """
-        This method calculates the expected scalarised reward for a given strategy using the agent's own Q values.
-        :param state: The preferred joint action.
-        :param strategy: The mixed strategy.
-        :return: The expected scalarised reward for the strategy for all objectives.
-        """
-        esr = np.dot(self.q_table[state], np.array(strategy))
-        return esr
+        return state
 
 
 def calc_utility(agent, vector):

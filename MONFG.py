@@ -16,7 +16,10 @@ def select_actions():
     global communicator, message
     selected = []
     for ag in range(num_agents):
-        selected.append(agents[ag].select_action_mixed_nonlinear(message))
+        if ag == communicator:
+            selected.append(agents[ag].select_published_action(message))
+        else:
+            selected.append(agents[ag].select_counter_action(message))
     return selected
 
 
@@ -50,21 +53,23 @@ def update():
     This function gets called after every episode to update the Q-tables.
     :return: /
     """
+    global communicator
     for ag in range(num_agents):
         agents[ag].update_q_table(message, selected_actions[ag], payoffs[ag])
-        agents[ag].update_joint_table(selected_actions, payoffs[ag])
+        if ag != communicator:  # Only the follower knows the joint action
+            agents[ag].update_payoffs_table(selected_actions, payoffs[ag])
 
 
 def get_message(ep):
     """
     This function prepares the communication for this episode. This is the preferred action of a specific agent.
     :param ep: The current episode.
-    :return: The preferred joint action.
+    :return: The preferred action for the leader (= communicator).
     """
     global communicator, message
     communicator = ep % num_agents
     if 1:  # TODO: Let the agent decide when it wishes to communicate something
-        message = agents[communicator].pref_joint_action()
+        message = agents[communicator].select_publish_action()
     else:
         message = None
     return communicator, message
@@ -114,7 +119,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-opt_init', dest='opt_init', action='store_true', help="optimistic initialization")
 parser.add_argument('-game', type=str, default='game1', choices=['game1', 'game2', 'game3', 'game4', 'game5'],
                     help="which MONFG game to play")
-parser.add_argument('-criterion', type=str, default='ESR', choices=['SER', 'SRE'], help="optimization criterion to use")
+parser.add_argument('-criterion', type=str, default='SER', choices=['SER', 'ESR'], help="optimization criterion to use")
 parser.add_argument('-rand_prob', dest='rand_prob', action='store_true', help="rand init for optimization prob")
 
 parser.add_argument('-provide_comms', dest='provide_comms', action='store_true', help="Allow communication")
