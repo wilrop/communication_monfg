@@ -138,55 +138,12 @@ provide_comms = args.provide_comms
 rand_prob = args.rand_prob
 opt_init = args.opt_init
 
-if game == 'game1':
-    # Called game 1 in the paper
-    # original (Im)balancing act game
-    payoffsObj1 = np.array([[4, 3, 2],
-                            [3, 2, 1],
-                            [2, 1, 0]])
-    payoffsObj2 = np.array([[0, 1, 2],
-                            [1, 2, 3],
-                            [2, 3, 4]])
-
-elif game == 'game2':
-    # Called game 2 in the paper
-    # 2 action game that has no NE, it is the original (Im)balancing act game without M
-    payoffsObj1 = np.array([[4, 2],
-                            [2, 0]])
-    payoffsObj2 = np.array([[0, 2],
-                            [2, 4]])
-
-elif game == 'game3':
-    # 2 action game that has one pure strategy NE, it is the original (Im)balancing act game without R
-    # the pure strategy NE is (L,M)
-    payoffsObj1 = np.array([[4, 3],
-                            [3, 2]])
-    payoffsObj2 = np.array([[0, 1],
-                            [1, 2]])
-
-elif game == 'game4':
-    # 2 action game that has multiple pure strategy NE
-    payoffsObj1 = np.array([[4, 1],
-                            [3, 3]])
-    payoffsObj2 = np.array([[1, 2],
-                            [1, 2]])
-
-elif game == 'game5':
-    # Called game 3 in the paper
-    # 3 action game that has 3 pure strategy NE
-    # The pure strategy NE are for the action combinations (L,L), (M,M) and (R,R)
-    payoffsObj1 = np.array([[4, 1, 2],
-                            [3, 3, 1],
-                            [1, 2, 1]])
-    payoffsObj2 = np.array([[1, 2, 1],
-                            [1, 2, 2],
-                            [2, 1, 3]])
-
+payoff_matrix = get_payoff_matrix(game)
 communicator = -1
 message = 0
 num_objectives = 2
 num_agents = 2
-num_actions = payoffsObj1.shape[0]
+num_actions = payoff_matrix.shape[0]
 num_states = num_actions ** num_agents  # Number of possible joint action messages
 agents = []
 selected_actions = [-1, -1]
