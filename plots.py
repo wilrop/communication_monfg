@@ -15,7 +15,7 @@ sns.set_style('white', {'axes.edgecolor': "0.5", "pdf.fonttype": 42})
 plt.gcf().subplots_adjust(bottom=0.15)
 
 provide_comms = True
-criterion = 'ESR'
+criterion = 'SER'
 rand_prob = False
 episodes = 10000
 

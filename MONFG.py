@@ -1,10 +1,9 @@
 import time
 import argparse
 import pandas as pd
-import numpy as np
 from utils import *
 from games import *
-from QLearnerESR import QLearnerESR, calc_utility
+from ActorCriticESR import ActorCriticESR
 from ActorCriticSER import ActorCriticSER
 from collections import Counter
 
@@ -18,7 +17,7 @@ def select_actions():
     selected = []
     for ag in range(num_agents):
         if ag == communicator:
-            selected.append(agents[ag].select_published_action(message))
+            selected.append(agents[ag].select_committed_action())
         else:
             selected.append(agents[ag].select_counter_action(message))
     return selected
@@ -32,8 +31,7 @@ def calc_payoffs():
     global payoffs
     payoffs.clear()
     for ag in range(num_agents):
-        payoffs.append([payoffsObj1[selected_actions[0]][selected_actions[1]],
-                        payoffsObj2[selected_actions[0]][selected_actions[1]]])  # Grab the correct payoff for the objs
+        payoffs.append(payoff_matrix[selected_actions[0]][selected_actions[1]])  # Append the payoffs from the actions.
 
 
 def decay_params():
@@ -41,24 +39,21 @@ def decay_params():
     Decay the parameters of the Q-learning algorithm.
     :return: /
     """
-    global alpha, epsilon
-    alpha *= alpha_decay
-    epsilon *= epsilon_decay
+    global alpha_q, alpha_theta
+    alpha_q *= alpha_q_decay
+    alpha_theta *= alpha_theta_decay
     for ag in range(num_agents):
-        agents[ag].alpha = alpha
-        agents[ag].epsilon = epsilon
+        agents[ag].alpha_q = alpha_q
+        agents[ag].alpha_theta = alpha_theta
 
 
 def update():
     """
-    This function gets called after every episode to update the Q-tables.
+    This function gets called after every episode to update the learning agent.
     :return: /
     """
-    global communicator
-    for ag in range(num_agents):
-        agents[ag].update_q_table(message, selected_actions[ag], payoffs[ag])
-        if ag != communicator:  # Only the follower knows the joint action
-            agents[ag].update_payoffs_table(selected_actions, payoffs[ag])
+    agents[0].update(selected_actions[1], selected_actions[0], payoffs[0])
+    agents[1].update(selected_actions[0], selected_actions[1], payoffs[1])
 
 
 def get_message(ep):
@@ -70,7 +65,7 @@ def get_message(ep):
     global communicator, message
     communicator = ep % num_agents
     if 1:  # TODO: Let the agent decide when it wishes to communicate something
-        message = agents[communicator].select_publish_action()
+        message = agents[communicator].select_commit_strategy()
     else:
         message = None
     return communicator, message
@@ -82,7 +77,7 @@ def do_episode(ep):
     :param ep: The current episode.
     :return: /
     """
-    global selected_actions, payoffs, current_states
+    global selected_actions, payoffs
     if provide_comms:
         get_message(ep)
     selected_actions = select_actions()
@@ -98,20 +93,20 @@ def reset(opt=False, rand_prob=False):
     :param rand_prob: Boolean that decides on random initialization for the mixed  strategy.
     :return: /
     """
-    global communicator, message, current_states, selected_actions, alpha, epsilon
-    agents.clear()
-    for ag in range(num_agents):
-        if criterion == 'SER':
-            new_agent = QLearnerSER(ag, alpha, gamma, epsilon, num_states, num_actions, num_objectives, opt, rand_prob)
-        else:
-            new_agent = QLearnerESR(ag, alpha, gamma, epsilon, num_states, num_actions, num_objectives, opt, rand_prob)
-        agents.append(new_agent)
+    global communicator, message, selected_actions, alpha_q, alpha_theta
     communicator = -1
     message = 0
-    current_states = [0, 0]
     selected_actions = [-1, -1]
-    alpha = alpha_start
-    epsilon = epsilon_start
+    alpha_q = alpha_q_start
+    alpha_theta = alpha_theta_start
+    agents.clear()
+    for ag in range(num_agents):
+        u, du = get_u_and_du(ag)
+        if criterion == 'SER':
+            new_agent = ActorCriticSER(u, du, alpha_q, alpha_theta, num_actions, num_objectives, opt)
+        else:
+            new_agent = ActorCriticESR(u, du, alpha_q, alpha_theta, num_actions, num_objectives, opt)
+        agents.append(new_agent)
 
 
 parser = argparse.ArgumentParser()
@@ -145,18 +140,15 @@ message = 0
 num_objectives = 2
 num_agents = 2
 num_actions = payoff_matrix.shape[0]
-num_states = num_actions ** num_agents  # Number of possible joint action messages
 agents = []
 selected_actions = [-1, -1]
 payoffs = [-1, -1]
-current_states = [0, 0]
-alpha = 0.05
-alpha_start = 0.05
-alpha_decay = 1
-epsilon = 0.1
-epsilon_start = 0.1
-epsilon_decay = 0.999
-gamma = 0.0  # this should always be zero as a MONFG is a stateless one shot decision problem
+alpha_q = 0.05
+alpha_q_start = 0.05
+alpha_q_decay = 1
+alpha_theta = 0.05
+alpha_theta_start = 0.05
+alpha_theta_decay = 1
 payoff_log = []
 
 payoff_episode_log1 = []
@@ -189,8 +181,8 @@ for r in range(num_runs):
     action_hist = [[], []]
     for e in range(num_episodes):
         do_episode(e)
-        payoff_episode_log1.append([e, r, calc_utility(0, payoffs[0])])
-        payoff_episode_log2.append([e, r, calc_utility(1, payoffs[1])])
+        payoff_episode_log1.append([e, r, u1(payoffs[0])])
+        payoff_episode_log2.append([e, r, u2(payoffs[1])])
         for i in range(num_agents):
             action_hist[i].append(selected_actions[i])
         if e >= 0.9 * num_episodes:
