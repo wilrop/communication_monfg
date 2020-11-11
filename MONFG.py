@@ -3,6 +3,7 @@ import argparse
 import pandas as pd
 import numpy as np
 from utils import *
+from games import *
 from QLearnerESR import QLearnerESR, calc_utility
 from ActorCriticSER import ActorCriticSER
 from collections import Counter
