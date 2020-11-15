@@ -92,3 +92,38 @@ def get_u_and_du(agent):
         return u1, gradient_u1
     else:
         return u2, gradient_u2
+
+
+def get_min_max(game):
+    """
+    This method will return the minimum and maximum utility for both agents in the given game.
+    :param game: The game for which we want the minimum and maximum utilities possible.
+    :return: The minimum and the maximum for both agents
+    """
+    if game == 'game1':
+        min1 = 8
+        max1 = 16
+        min2 = 0
+        max2= 4
+    elif game == 'game2':
+        min1 = 8
+        max1 = 16
+        min2 = 0
+        max2 = 4
+    elif game == 'game3':
+        min1 = 8
+        max1 = 16
+        min2 = 0
+        max2 = 4
+    elif game == 'game4':
+        min1 = 5
+        max1 = 17
+        min2 = 2
+        max2 = 6
+    else:
+        min1 = 5
+        max1 = 17
+        min2 = 2
+        max2 = 6
+
+    return min1, max1, min2, max2

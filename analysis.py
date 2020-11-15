@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from games import *
 
 provide_comms = True
 criterion = 'SER'
@@ -17,31 +18,7 @@ def normalise(min, max, arr):
 
 # ['game1', 'game2', 'game3', 'game4', 'game5']
 for game in ['game1', 'game2', 'game3', 'game4', 'game5']:
-    if game == 'game1':
-        min1 = 8
-        max1 = 16
-        min2 = 0
-        max2= 4
-    elif game == 'game2':
-        min1 = 8
-        max1 = 16
-        min2 = 0
-        max2 = 4
-    elif game == 'game3':
-        min1 = 8
-        max1 = 16
-        min2 = 0
-        max2 = 4
-    elif game == 'game4':
-        min1 = 5
-        max1 = 17
-        min2 = 2
-        max2 = 6
-    else:
-        min1 = 5
-        max1 = 17
-        min2 = 2
-        max2 = 6
+    min1, max1, min2, max2 = get_min_max(game)
 
     for opt_init in [False]:  # [True, False]:
         path_data = f'data/{criterion}/{game}'

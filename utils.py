@@ -39,3 +39,19 @@ def softmax_grad(softmax):
     """
     s = softmax.reshape(-1, 1)
     return np.diagflat(s) - np.dot(s, s.T)
+
+
+def normalise(min, max, arr):
+    """
+    This function normalises an input array to be between 0 and 1.
+    :param min: The minimum value possible.
+    :param max: The maximum value possible.
+    :param arr: The input array.
+    :return: The normalised array.
+    """
+    normalised = []
+    for i in arr:
+        new = (i - min)/(max - min)
+        normalised.append(new)
+    return normalised
+

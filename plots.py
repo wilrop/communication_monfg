@@ -1,11 +1,12 @@
 import pandas as pd
 import matplotlib
+import matplotlib.pyplot as plt
+import seaborn as sns
+from games import *
+from utils import *
 
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
-import matplotlib.pyplot as plt
-import seaborn as sns
-from utils import *
 
 sns.set()
 sns.despine()
@@ -14,113 +15,46 @@ sns.set_context("paper", rc={"font.size": 18, "axes.labelsize": 18, "xtick.label
 sns.set_style('white', {'axes.edgecolor': "0.5", "pdf.fonttype": 42})
 plt.gcf().subplots_adjust(bottom=0.15)
 
-provide_comms = True
+experiments = ['No-comms', 'Max-utility', 'Stackelberg', 'Mixed-stackelberg']
+games = ['game1', 'game2', 'game3', 'game4', 'game5']
 criterion = 'SER'
 rand_prob = False
 episodes = 10000
 
-# ['game1', 'game2', 'game3', 'game4', 'game5']
-for game in ['game1', 'game2', 'game3', 'game4', 'game5']:
-    for opt_init in [False]:  # [True, False]:
-        path_data = f'data/{criterion}/{game}'
-        path_plots = f'plots/{criterion}/{game}'
 
-        if opt_init:
-            path_data += '/opt_init'
-            path_plots += '/opt_init'
-        else:
-            path_data += '/zero_init'
-            path_plots += '/zero_init'
-
-        if rand_prob:
-            path_data += '/opt_rand'
-            path_plots += '/opt_rand'
-        else:
-            path_data += '/opt_eq'
-            path_plots += '/opt_eq'
-
-        print("Creating plot path: " + repr(path_plots))
-        mkdir_p(path_plots)
-
-        info = 'NE_'
-
-        if provide_comms:
-            info += 'comm'
-        else:
-            info += 'no_comm'
-
-        df1 = pd.read_csv(f'{path_data}/agent1_{info}.csv')
-        df2 = pd.read_csv(f'{path_data}/agent2_{info}.csv')
-        df1 = df1.iloc[::5, :]
-        df2 = df2.iloc[::5, :]
-
-        ax = sns.lineplot(x='Episode', y='Payoff', linewidth=2.0, data=df1, ci='sd', label='Agent 1')
-        ax = sns.lineplot(x='Episode', y='Payoff', linewidth=2.0, data=df2, ci='sd', label='Agent 2')
-        ax.set(ylabel='Scalarised payoff')
-        ax.set_ylim(1, 18)
-        ax.set_xlim(0, episodes)
-        plot_name = f"{path_plots}/{game}_{criterion}_{info}"
-
-        plt.savefig(plot_name + ".pdf")
+def plot_hist(data_path, plot_path):
+    for game in games:
         plt.clf()
+        data = []
+        min1, max1, min2, max2 = get_min_max(game)
+        for experiment in experiments:
+            if experiment == 'No-comms':
+                data1_path = f'{data_path}/{experiment}/data/{criterion}/{game}/zero_init/opt_eq/agent1_NE_no_comm.csv'
+                data2_path = f'{data_path}/{experiment}/data/{criterion}/{game}/zero_init/opt_eq/agent2_NE_no_comm.csv'
+            else:
+                data1_path = f'{data_path}/{experiment}/data/{criterion}/{game}/zero_init/opt_eq/agent1_NE_comm.csv'
+                data2_path = f'{data_path}/{experiment}/data/{criterion}/{game}/zero_init/opt_eq/agent2_NE_comm.csv'
 
-        # Plot the action probabilities for Agent 1
-        df1 = pd.read_csv(f'{path_data}/agent1_probs_{info}.csv')
-        df1 = df1.iloc[::5, :]
+            df1 = pd.read_csv(data1_path)
+            df2 = pd.read_csv(data2_path)
 
-        if game == 'game2':
-            label2 = 'R'
-        else:
-            label2 = 'M'
+            payoffs1 = df1['Payoff']
+            payoffs2 = df2['Payoff']
 
-        ax = sns.lineplot(x='Episode', y='Action 1', linewidth=2.0, data=df1, ci='sd', label='L')
-        ax = sns.lineplot(x='Episode', y='Action 2', linewidth=2.0, data=df1, ci='sd', label=label2)
+            normalised1 = normalise(min1, max1, payoffs1)
+            normalised2 = normalise(min2, max2, payoffs2)
+            nmean1 = np.mean(normalised1)
+            nmean2 = np.mean(normalised2)
+            data.append([experiment, 'Agent 1', nmean1])
+            data.append([experiment, 'Agent 2', nmean2])
 
-        if game in ['game1', 'game5']:
-            ax = sns.lineplot(x='Episode', y='Action 3', linewidth=2.0, data=df1, ci='sd', label='R')
-        ax.set(ylabel='Action probability')
-        # if provide_recs:
-        ax.set_ylim(-0.05, 1.05)
-        ax.set_xlim(0, episodes)
-        plot_name = f"{path_plots}/{game}_{criterion}_A1_{info}"
-
+        df = pd.DataFrame(data, columns=['Experiment', 'Agent', 'Normalised average utility'])
+        sns.barplot(x="Experiment", y="Normalised average utility", hue="Agent", data=df)
+        plot_name = f"{plot_path}/{game}/norm_avg_comp"
         plt.savefig(plot_name + ".pdf")
-        plt.clf()
 
-        # Plot the action probabilities for Agent 2
-        df1 = pd.read_csv(f'{path_data}/agent2_probs_{info}.csv')
-        df1 = df1.iloc[::5, :]
 
-        ax = sns.lineplot(x='Episode', y='Action 1', linewidth=2.0, data=df1, ci='sd', label='L')
-        ax = sns.lineplot(x='Episode', y='Action 2', linewidth=2.0, data=df1, ci='sd', label=label2)
-        if game in ['game1', 'game5']:
-            ax = sns.lineplot(x='Episode', y='Action 3', linewidth=2.0, data=df1, ci='sd', label='R')
-        ax.set(ylabel='Action probability')
-        ax.set_ylim(-0.05, 1.05)
-        ax.set_xlim(0, episodes)
-        plot_name = f"{path_plots}/{game}_{criterion}_A2_{info}"
+data_path = '/Users/willemropke/OneDrive - Vrije Universiteit Brussel/2 MA/Thesis/Results'
+plot_path = '/Users/willemropke/OneDrive - Vrije Universiteit Brussel/2 MA/Thesis/Results/Comparisons'
 
-        plt.savefig(plot_name + ".pdf")
-        plt.clf()
-
-        # Plot distribution over the joint action space, for the last 1k episodes, over all trials
-        df = pd.read_csv(f'{path_data}/states_{info}.csv', header=None)
-
-        if game == 'game2':
-            x_axis_labels = ["L", "R"]
-            y_axis_labels = ["L", "R"]
-
-        if game in ['game3', 'game4']:
-            x_axis_labels = ["L", "M"]
-            y_axis_labels = ["L", "M"]
-
-        if game in ['game1', 'game5']:
-            x_axis_labels = ["L", "M", "R"]
-            y_axis_labels = ["L", "M", "R"]
-
-        ax = sns.heatmap(df, annot=True, cmap="YlGnBu", vmin=0, vmax=1, xticklabels=x_axis_labels,
-                         yticklabels=y_axis_labels)
-        plot_name = f"{path_plots}/{game}_{criterion}_states_{info}"
-
-        plt.savefig(plot_name + ".pdf")
-        plt.clf()
+plot_hist(data_path, plot_path)
