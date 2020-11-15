@@ -104,7 +104,7 @@ def get_min_max(game):
         min1 = 8
         max1 = 16
         min2 = 0
-        max2= 4
+        max2 = 4
     elif game == 'game2':
         min1 = 8
         max1 = 16
