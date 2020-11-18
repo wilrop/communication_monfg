@@ -54,4 +54,3 @@ def normalise(min, max, arr):
         new = (i - min)/(max - min)
         normalised.append(new)
     return normalised
-
