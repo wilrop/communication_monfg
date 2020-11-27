@@ -9,7 +9,7 @@ from QLearnerSER import QLearnerSER
 
 def get_message(agents, episode):
     communicator = episode % len(agents)
-    message = agents[communicator].pref_joint_action()
+    message = agents[communicator].select_commit_action()
     return message
 
 
@@ -90,7 +90,7 @@ def decay_params(agents, alpha_decay, epsilon_decay):
         agent.epsilon *= epsilon_decay
 
 
-def update(agents, message, actions, payoffs):
+def update(agents, actions, payoffs):
     """
     This function gets called after every episode to update the policy of every agent.
     :param agents: A list of agents.
@@ -99,7 +99,7 @@ def update(agents, message, actions, payoffs):
     :return:
     """
     for idx, agent in enumerate(agents):
-        agent.update(message, actions, payoffs[idx])
+        agent.update(actions, payoffs[idx])
 
 
 def reset(num_agents, num_states, num_actions, num_objectives, alpha, epsilon, opt=False, rand_prob=False):
@@ -118,9 +118,9 @@ def reset(num_agents, num_states, num_actions, num_objectives, alpha, epsilon, o
     for ag in range(num_agents):
         u, du = get_u_and_du(ag + 1)  # The utility function and derivative of the utility function for this agent.
         if criterion == 'SER':
-            new_agent = QLearnerSER(ag, u, alpha, epsilon, num_states, num_actions, num_objectives, opt, rand_prob)
+            new_agent = QLearnerSER(ag, u, alpha, epsilon, num_actions, num_objectives, opt, rand_prob)
         else:
-            new_agent = QLearnerESR(ag, u, alpha, epsilon, num_states, num_actions, num_objectives, opt, rand_prob)
+            new_agent = QLearnerESR(ag, u, alpha, epsilon, num_actions, num_objectives, opt, rand_prob)
         agents.append(new_agent)
     return agents
 
@@ -163,7 +163,7 @@ def run_experiment(runs, episodes, criterion, payoff_matrix, opt_init, rand_prob
             message = get_message(agents, episode)
             actions = select_actions(agents, message)
             payoffs = calc_payoffs(agents, actions, payoff_matrix)
-            update(agents, message, actions, payoffs)  # Update the current strategy based on the returns.
+            update(agents, actions, payoffs)  # Update the current strategy based on the returns.
             decay_params(agents, alpha_decay, epsilon_decay)  # Decay the parameters after the episode is finished.
 
             # Get the necessary results from this episode.
@@ -238,7 +238,7 @@ if __name__ == "__main__":
     parser.add_argument('-criterion', type=str, default='SER', choices=['SER', 'ESR'],
                         help="optimization criterion to use")
 
-    parser.add_argument('-name', type=str, default='max_u', help='The name under which to save the results')
+    parser.add_argument('-name', type=str, default='scb', help='The name under which to save the results')
     parser.add_argument('-runs', type=int, default=100, help="number of trials")
     parser.add_argument('-episodes', type=int, default=5000, help="number of episodes")
 
