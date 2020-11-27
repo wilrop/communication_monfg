@@ -8,38 +8,54 @@ class QLearnerSER:
     This class represents an agent that uses the SER multi-objective optimisation criterion.
     """
 
-    def __init__(self, utility, alpha, epsilon, num_actions, num_objectives, opt=False, rand_prob=False):
+    def __init__(self, id, utility, alpha, epsilon, num_states, num_actions, num_objectives, opt=False, rand_prob=False):
+        self.id = id
         self.utility = utility
         self.alpha = alpha
         self.epsilon = epsilon
+        self.num_states = num_states
         self.num_actions = num_actions
         self.num_objectives = num_objectives
         # optimistic initialization of Q-table
         if opt:
-            self.q_table = np.ones((num_actions, num_objectives)) * 20
+            self.q_table = np.ones((num_states, num_actions, num_objectives)) * 20
         else:
-            self.q_table = np.zeros((num_actions, num_objectives))
+            self.q_table = np.zeros((num_states, num_actions, num_objectives))
+        self.joint_table = np.zeros((num_actions, num_actions))
         self.rand_prob = rand_prob
         self.strategy = np.full(num_actions, 1 / num_actions)
+        self.latest_message = 0
 
-    def update(self, action, reward):
+    def update(self, state, actions, reward):
         """
         This method will update the Q-table and strategy of the agent.
         :param action: The action that was chosen by the agent.
         :param reward: The reward that was obtained by the agent.
         :return: /
         """
-        self.update_q_table(action, reward)
-        self.strategy = self.calc_mixed_strategy_nonlinear()
+        own_action = actions[self.id]
+        self.update_q_table(state, own_action, reward)
+        self.update_joint_table(actions, reward)
 
-    def update_q_table(self, action, reward):
+    def update_q_table(self, state, action, reward):
         """
         This method will update the Q-table based on the chosen actions and the obtained reward.
         :param action: The action chosen by this agent.
         :param reward: The reward obtained by this agent.
         :return: /
         """
-        self.q_table[action] += self.alpha * (reward - self.q_table[action])
+        self.q_table[state][action] += self.alpha * (reward - self.q_table[state][action])
+
+    def update_joint_table(self, actions, reward):
+        utility = self.utility(reward)
+        self.joint_table[actions[0], actions[1]] += self.alpha * (utility - self.joint_table[actions[0], actions[1]])
+
+    def pref_joint_action(self):
+        """
+        This method will calculate the preferred joint-action for an agent based on the payoffs of joint actions.
+        :return: The joint action that will result in the highest utility for the agent as a flat index.
+        """
+        return np.argmax(self.joint_table)
 
     def select_random_action(self):
         """
@@ -48,11 +64,13 @@ class QLearnerSER:
         """
         return np.random.randint(self.num_actions)
 
-    def select_action(self):
+    def select_action(self, state):
         """
         This method will perform epsilon greedy action selection.
         :return: The selected action.
         """
+        self.latest_message = state
+        self.strategy = self.calc_mixed_strategy_nonlinear()  # Calculate a strategy each time.
         if random.uniform(0.0, 1.0) < self.epsilon:
             return self.select_random_action()
         else:
@@ -111,5 +129,6 @@ class QLearnerSER:
         :param strategy: The mixed strategy.
         :return: The expected results for all objectives.
         """
-        expected_vec = strategy @ self.q_table
+        expected_q = self.q_table[self.latest_message]
+        expected_vec = strategy @ expected_q
         return expected_vec
