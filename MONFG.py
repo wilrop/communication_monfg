@@ -139,7 +139,7 @@ def run_experiment(runs, episodes, criterion, payoff_matrix, opt_init, rand_prob
     # Setting hyperparameters.
     num_agents = 2
     num_actions = payoff_matrix.shape[0]
-    num_states = num_actions ** num_actions
+    num_states = num_actions ** num_agents
     num_objectives = 2
     epsilon = 0.1
     epsilon_decay = 0.999
