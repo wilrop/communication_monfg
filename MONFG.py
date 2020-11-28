@@ -8,6 +8,12 @@ from QLearnerSER import QLearnerSER
 
 
 def get_message(agents, episode):
+    """
+    This function gets the message from the communicating agent.
+    :param agents: The list of agents.
+    :param episode: The current episode.
+    :return: The selected message.
+    """
     communicator = episode % len(agents)
     message = agents[communicator].pref_joint_action()
     return message
@@ -17,6 +23,7 @@ def select_actions(agents, message):
     """
     This function selects an action from each agent's policy.
     :param agents: The list of agents.
+    :param message: The message selected by the communicating agent.
     :return: A list of selected actions.
     """
     selected = []
@@ -94,6 +101,7 @@ def update(agents, message, actions, payoffs):
     """
     This function gets called after every episode to update the policy of every agent.
     :param agents: A list of agents.
+    :param message: The message selected by the communicating agent.
     :param actions: A list of each action that was chosen, indexed by agent.
     :param payoffs: A list of each payoff that was received, indexed by agent.
     :return:

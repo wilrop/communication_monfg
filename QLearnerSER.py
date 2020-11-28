@@ -29,7 +29,8 @@ class QLearnerSER:
     def update(self, state, actions, reward):
         """
         This method will update the Q-table and strategy of the agent.
-        :param action: The action that was chosen by the agent.
+        :param state: The broadcasted joint action.
+        :param actions: The actions selected in the previous episode.
         :param reward: The reward that was obtained by the agent.
         :return: /
         """
@@ -40,6 +41,7 @@ class QLearnerSER:
     def update_q_table(self, state, action, reward):
         """
         This method will update the Q-table based on the chosen actions and the obtained reward.
+        :param state: The message that was broadcast.
         :param action: The action chosen by this agent.
         :param reward: The reward obtained by this agent.
         :return: /
@@ -47,6 +49,12 @@ class QLearnerSER:
         self.q_table[state][action] += self.alpha * (reward - self.q_table[state][action])
 
     def update_joint_table(self, actions, reward):
+        """
+        This method will update the table that holds the Q-values for joint actions.
+        :param actions: The actions taken by the agents.
+        :param reward: The reward obtained by this agent.
+        :return: /
+        """
         utility = self.utility(reward)
         self.joint_table[actions[0], actions[1]] += self.alpha * (utility - self.joint_table[actions[0], actions[1]])
 
@@ -67,6 +75,7 @@ class QLearnerSER:
     def select_action(self, state):
         """
         This method will perform epsilon greedy action selection.
+        :param state: The message that was broadcast.
         :return: The selected action.
         """
         self.latest_message = state
