@@ -8,7 +8,13 @@ from QLearnerSER import QLearnerSER
 
 
 def get_message(agents, episode):
-    communicator = episode % len(agents)
+    """
+    This function gets the message from the communicating agent.
+    :param agents: The list of agents.
+    :param episode: The current episode.
+    :return: The selected message.
+    """
+    communicator = episode % len(agents)  # Select the communicator in round-robin fashion.
     message = agents[communicator].select_commit_action()
     return message
 
@@ -17,6 +23,7 @@ def select_actions(agents, message):
     """
     This function selects an action from each agent's policy.
     :param agents: The list of agents.
+    :param message: The message selected by the communicating agent.
     :return: A list of selected actions.
     """
     selected = []
@@ -102,7 +109,7 @@ def update(agents, actions, payoffs):
         agent.update(actions, payoffs[idx])
 
 
-def reset(num_agents, num_states, num_actions, num_objectives, alpha, epsilon, opt=False, rand_prob=False):
+def reset(num_agents, num_actions, num_objectives, alpha, epsilon, opt=False, rand_prob=False):
     """
     Ths function will create fresh agents that can be used in a new trial.
     :param num_agents: The number of agents to create.
@@ -139,7 +146,6 @@ def run_experiment(runs, episodes, criterion, payoff_matrix, opt_init, rand_prob
     # Setting hyperparameters.
     num_agents = 2
     num_actions = payoff_matrix.shape[0]
-    num_states = num_actions ** num_actions
     num_objectives = 2
     epsilon = 0.1
     epsilon_decay = 0.999
@@ -156,7 +162,7 @@ def run_experiment(runs, episodes, criterion, payoff_matrix, opt_init, rand_prob
 
     for run in range(runs):
         print("Starting run: ", run)
-        agents = reset(num_agents, num_states, num_actions, num_objectives, alpha, epsilon, opt_init, rand_prob)
+        agents = reset(num_agents, num_actions, num_objectives, alpha, epsilon, opt_init, rand_prob)
 
         for episode in range(episodes):
             # Run one episode.

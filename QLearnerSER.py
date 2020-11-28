@@ -29,7 +29,7 @@ class QLearnerSER:
     def update(self, actions, reward):
         """
         This method will update the Q-table and strategy of the agent.
-        :param action: The action that was chosen by the agent.
+        :param actions: The actions selected in the previous episode.
         :param reward: The reward that was obtained by the agent.
         :return: /
         """
@@ -49,13 +49,24 @@ class QLearnerSER:
         self.q_table[action] += self.alpha * (reward - self.q_table[action])
 
     def update_payoffs_table(self, actions, reward):
+        """
+        This method will update the payoffs table to learn the payoff vector of joint actions.
+        :param actions: The actions that were taken in the previous episode.
+        :param reward: The reward obtained by this joint action.
+        :return: /
+        """
         self.payoffs_table[actions[0], actions[1]] += self.alpha * (reward - self.payoffs_table[actions[0], actions[1]])
 
     def select_action(self, message):
+        """
+        This method will select an action based on the message that was sent.
+        :param message: The message that was sent.
+        :return: The selected action.
+        """
         if self.communicating:
-            return self.select_published_action(message)
+            return self.select_published_action(message)  # If this agent is committing, they must follow through.
         else:
-            return self.select_counter_action(message)
+            return self.select_counter_action(message)  # Otherwise select a counter action.
 
     def select_commit_action(self):
         """
