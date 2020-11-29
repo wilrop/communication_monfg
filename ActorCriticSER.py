@@ -74,6 +74,11 @@ class ActorCriticSER:
         return self.policy
 
     def select_action(self, message):
+        """
+        This method will select an action based on the message that was sent.
+        :param message: The message that was sent.
+        :return: The selected action.
+        """
         if self.communicator == self.id:
             self.communicator = False
             return self.select_committed_action()
