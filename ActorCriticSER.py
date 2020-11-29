@@ -65,34 +65,37 @@ class ActorCriticSER:
         self.theta += self.alpha_theta * grad_theta
         self.policy = softmax(self.theta)
 
-    def select_commit_strategy(self):
+    def select_commit_action(self):
         """
         This method will determine what action this agent will publish.
         :return: The current learned policy.
         """
         self.communicator = True
-        return self.policy
+        return np.random.choice(range(self.num_actions), p=self.policy)
 
     def select_action(self, message):
         if self.communicator == self.id:
             self.communicator = False
-            return self.select_committed_action()
+            return self.select_committed_action(message)
         else:
             return self.select_counter_action(message)
 
-    def select_counter_action(self, op_policy):
+    def select_counter_action(self, action):
         """
         This method will perform epsilon greedy action selection.
         :param op_policy: The strategy committed to by the opponent.
         :return: The selected action.
         """
+        op_policy = np.zeros(self.num_actions)
+        op_policy[action] = 1
         self.op_policy = op_policy
         self.update_policy()
         return np.random.choice(range(self.num_actions), p=self.policy)
 
-    def select_committed_action(self):
+    @staticmethod
+    def select_committed_action(action):
         """
         This method uses the committed strategy to select the action that will be played.
         :return: An action that was selected using the current policy.
         """
-        return np.random.choice(range(self.num_actions), p=self.policy)
+        return action
