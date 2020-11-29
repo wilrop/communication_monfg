@@ -9,7 +9,8 @@ class ActorCriticSER:
     This class represents an agent that uses the SER optimisation criterion.
     """
 
-    def __init__(self, utility_function, derivative, alpha_q, alpha_theta, num_actions, num_objectives, opt=False):
+    def __init__(self, id, utility_function, derivative, alpha_q, alpha_theta, num_actions, num_objectives, opt=False):
+        self.id = id
         self.utility_function = utility_function
         self.derivative = derivative
         self.num_actions = num_actions
@@ -24,34 +25,38 @@ class ActorCriticSER:
             self.q_table = np.ones((num_actions, num_actions, num_objectives)) * 20
         else:
             self.q_table = np.zeros((num_actions, num_actions, num_objectives))
+        self.communicator = False
 
-    def update(self, action1, action2, reward):
+    def update(self, actions, reward):
         """
         This method updates the Q table and policy of the agent.
-        :param action1: The action taken by the opponent.
-        :param action2: The action taken by the agent itself.
+        :param actions: The actions taken by the agents.
         :param reward: The reward obtained in this episode.
         :return: /
         """
-        self.update_q_table(action1, action2, reward)
+        self.update_q_table(actions, reward)
         self.update_policy()
 
-    def update_q_table(self, action1, action2, reward):
+    def update_q_table(self, actions, reward):
         """
         This method will update the Q-table based on the message, chosen actions and the obtained reward.
-        :param action1: The action played by the opponent.
-        :param action2: The action played by the agent itself.
+        :param actions: The actions taken by the agents.
         :param reward: The reward obtained by this agent.
         :return: /
         """
-        self.q_table[action1][action2] += self.alpha_q * (reward - self.q_table[action1][action2])
+        self.q_table[actions[0], actions[1]] += self.alpha_q * (reward - self.q_table[actions[0], actions[1]])
 
     def update_policy(self):
         """
         This method will update the parameters theta of the policy.
         :return: /
         """
-        expected_q = self.op_policy @ self.q_table
+        if self.id == 0:
+            expected_q = self.op_policy @ self.q_table
+        else:
+            # We have to transpose axis 0 and 1 to interpret this as the column player.
+            expected_q = self.op_policy @ self.q_table.transpose((1, 0, 2))
+
         expected_u = self.policy @ expected_q
         # We apply the chain rule to calculate the gradient.
         grad_u = self.derivative(expected_u)  # The gradient of u
@@ -65,7 +70,15 @@ class ActorCriticSER:
         This method will determine what action this agent will publish.
         :return: The current learned policy.
         """
+        self.communicator = True
         return self.policy
+
+    def select_action(self, message):
+        if self.communicator == self.id:
+            self.communicator = False
+            return self.select_committed_action()
+        else:
+            return self.select_counter_action(message)
 
     def select_counter_action(self, op_policy):
         """
