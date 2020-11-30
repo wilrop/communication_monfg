@@ -15,7 +15,7 @@ def get_message(agents, episode):
     :return: The selected message.
     """
     communicator = episode % len(agents)  # Select the communicator in round-robin fashion.
-    message = agents[communicator].select_commit_strategy()
+    message = agents[communicator].select_commit_action()
     return message
 
 
