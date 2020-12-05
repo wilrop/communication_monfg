@@ -155,7 +155,7 @@ if __name__ == "__main__":
     parser.add_argument('-criterion', type=str, default='SER', choices=['SER', 'ESR'],
                         help="Optimisation criterion that was used.")
 
-    parser.add_argument('-name', type=str, default='mscb', help='The name of the experiments.')
+    parser.add_argument('-name', type=str, default='opt-comms', help='The name of the experiments.')
     parser.add_argument('-episodes', type=int, default=5000, help="The number of episodes that were ran.")
 
     # Optimistic initialization can encourage exploration.
