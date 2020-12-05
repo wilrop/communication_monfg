@@ -25,7 +25,7 @@ class ActorCriticSER:
             self.q_table = np.ones((num_actions, num_actions, num_objectives)) * 20
         else:
             self.q_table = np.zeros((num_actions, num_actions, num_objectives))
-        self.communicator = False
+        self.communicating = False
 
     def update(self, actions, reward):
         """
@@ -70,7 +70,7 @@ class ActorCriticSER:
         This method will determine what action this agent will publish.
         :return: The current learned policy.
         """
-        self.communicator = True
+        self.communicating = True
         return np.random.choice(range(self.num_actions), p=self.policy)
 
     def select_action(self, message):
@@ -79,8 +79,8 @@ class ActorCriticSER:
         :param message: The message that was sent.
         :return: The selected action.
         """
-        if self.communicator == self.id:
-            self.communicator = False
+        if self.communicating:
+            self.communicating = False
             return self.select_committed_action(message)
         else:
             return self.select_counter_action(message)
