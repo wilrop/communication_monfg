@@ -84,7 +84,7 @@ def get_action_probs(agents):
     return action_probs
 
 
-def decay_params(agents, alpha_decay):
+def decay_params(agents, epsilon_decay, alpha_decay):
     """
     This function decays the parameters of the Q-learning algorithm used in each agent.
     :param agents: A list of agents.
@@ -92,11 +92,12 @@ def decay_params(agents, alpha_decay):
     :return: /
     """
     for agent in agents:
+        agent.epsilon *= epsilon_decay
         agent.alpha_q *= alpha_decay
         agent.alpha_theta *= alpha_decay
 
 
-def update(agents, actions, payoffs):
+def update(agents, message, actions, payoffs):
     """
     This function gets called after every episode to update the policy of every agent.
     :param agents: A list of agents.
@@ -105,10 +106,10 @@ def update(agents, actions, payoffs):
     :return:
     """
     for idx, agent in enumerate(agents):
-        agent.update(actions, payoffs[idx])
+        agent.update(message, actions, payoffs[idx])
 
 
-def reset(num_agents, num_actions, num_objectives, alpha_q, alpha_theta, opt=False):
+def reset(num_agents, num_actions, num_objectives, epsilon, alpha_q, alpha_theta, opt=False):
     """
     Ths function will create fresh agents that can be used in a new trial.
     :param num_agents: The number of agents to create.
@@ -123,9 +124,9 @@ def reset(num_agents, num_actions, num_objectives, alpha_q, alpha_theta, opt=Fal
     for ag in range(num_agents):
         u, du = get_u_and_du(ag + 1)  # The utility function and derivative of the utility function for this agent.
         if criterion == 'SER':
-            new_agent = ActorCriticSER(ag, u, du, alpha_q, alpha_theta, num_actions, num_objectives, opt)
+            new_agent = ActorCriticSER(ag, u, du, epsilon, alpha_q, alpha_theta, num_actions, num_objectives, opt)
         else:
-            new_agent = ActorCriticESR(ag, u, du, alpha_q, alpha_theta, num_actions, num_objectives, opt)
+            new_agent = ActorCriticESR(ag, u, du, epsilon, alpha_q, alpha_theta, num_actions, num_objectives, opt)
         agents.append(new_agent)
     return agents
 
@@ -144,6 +145,8 @@ def run_experiment(runs, episodes, criterion, payoff_matrix, opt_init):
     num_agents = 2
     num_actions = payoff_matrix.shape[0]
     num_objectives = 2
+    epsilon = 0.1
+    epsilon_decay = 0.999
     alpha_q = 0.05
     alpha_theta = 0.05
     alpha_decay = 1
@@ -158,15 +161,15 @@ def run_experiment(runs, episodes, criterion, payoff_matrix, opt_init):
 
     for run in range(runs):
         print("Starting run: ", run)
-        agents = reset(num_agents, num_actions, num_objectives, alpha_q, alpha_theta, opt_init)
+        agents = reset(num_agents, num_actions, num_objectives, epsilon, alpha_q, alpha_theta, opt_init)
 
         for episode in range(episodes):
             # Run one episode.
             message = get_message(agents, episode)
             actions = select_actions(agents, message)
             payoffs = calc_payoffs(agents, actions, payoff_matrix)
-            update(agents, actions, payoffs)  # Update the current strategy based on the returns.
-            decay_params(agents, alpha_decay)  # Decay the parameters after the episode is finished.
+            update(agents, message, actions, payoffs)  # Update the current strategy based on the returns.
+            decay_params(agents, epsilon_decay, alpha_decay)  # Decay the parameters after the episode is finished.
 
             # Get the necessary results from this episode.
             probs = get_action_probs(agents)  # Get the current action probabilities of the agents.

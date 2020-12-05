@@ -22,6 +22,7 @@ class ActorCriticSER:
         self.theta_nm = np.zeros(num_actions)
         self.policy_m = softmax(self.theta_m)
         self.policy_nm = softmax(self.theta_nm)
+        self.policy = np.full(num_actions, 1.0 / num_actions)
         self.op_policy = np.full(num_actions, 1.0 / num_actions)
         self.num_messages = 2
         self.msg_strategy = np.full(self.num_messages, 1.0 / self.num_messages)
@@ -45,14 +46,15 @@ class ActorCriticSER:
         :return: /
         """
         self.msg_strategy = self.calc_mixed_strategy_nonlinear()
-        if message == -1:
+        if message is None:
             self.update_msg_q_table(0, reward)
-            self.update_q_table(self.q_table_nm, actions, reward)
-            self.policy_nm = self.update_policy(self.policy_nm, self.theta_nm, self.q_table_nm)
+            self.update_q_table(message, self.q_table_nm, actions, reward)
+            self.policy_nm = self.update_policy(message, self.policy_nm, self.theta_nm, self.q_table_nm)
         else:
             self.update_msg_q_table(1, reward)
-            self.update_q_table(self.q_table_m, actions, reward)
-            self.policy_m = self.update_policy(self.policy_m, self.theta_m, self.q_table_m)
+            self.update_q_table(message, self.q_table_m, actions, reward)
+            self.policy_m = self.update_policy(message, self.policy_m, self.theta_m, self.q_table_m)
+        self.policy = self.msg_strategy[0] * self.policy_nm + self.msg_strategy[1] * self.policy_m
 
     def update_msg_q_table(self, communicated, reward):
         """
@@ -70,7 +72,7 @@ class ActorCriticSER:
         :param reward: The reward obtained by this agent.
         :return: /
         """
-        if message == -1:
+        if message is None:
             q_table[actions[self.id]] += self.alpha_q * (reward - q_table[actions[self.id]])
         else:
             q_table[actions[0], actions[1]] += self.alpha_q * (reward - q_table[actions[0], actions[1]])
@@ -80,7 +82,7 @@ class ActorCriticSER:
         This method will update the parameters theta of the policy.
         :return: /
         """
-        if msg == -1:
+        if msg is None:
             expected_q = q_table
         else:
             if self.id == 0:
@@ -99,12 +101,12 @@ class ActorCriticSER:
 
     def communicate(self):
         if random.uniform(0.0, 1.0) < self.epsilon:
-            options = [-1, self.policy_m]
+            options = [None, self.policy_m]
             return options[np.random.randint(len(options))]
         else:
             message = self.select_message_greedy_mixed_nonlinear()
             if message == 0:  # Don't communicate
-                return -1
+                return None
             else:
                 self.communicator = True
                 return self.policy_m
@@ -173,7 +175,7 @@ class ActorCriticSER:
         :param message: The message that was sent.
         :return: The selected action.
         """
-        if message == -1:
+        if message is None:
             return np.random.choice(range(self.num_actions), p=self.policy_nm)
         else:
             if self.communicator:
@@ -189,7 +191,7 @@ class ActorCriticSER:
         :return: The selected action.
         """
         self.op_policy = op_policy
-        self.policy_m = self.update_policy(self.policy_m, self.theta_m, self.q_table_m)
+        self.policy_m = self.update_policy(op_policy, self.policy_m, self.theta_m, self.q_table_m)
         return np.random.choice(range(self.num_actions), p=self.policy_m)
 
     def select_committed_strategy(self, strategy):
