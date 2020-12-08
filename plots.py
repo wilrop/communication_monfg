@@ -77,6 +77,31 @@ def plot_action_probabilities(path_plots, game, episodes, agent, data):
     print("Finished plotting action probabilities for agent: " + repr(agent))
 
 
+def plot_message_probabilities(path_plots, game, episodes, agent, data):
+    """
+    This function will plot the action probabilities for a given agent.
+    :param path_plots: The path to which we save the plot.
+    :param game: The game that was played.
+    :param episodes: The number of episodes that was ran.
+    :param agent: The agent that is being plotted.
+    :param data: The data for this agent.
+    :return:
+    """
+    print("Plotting message probabilities for agent: " + repr(agent))
+
+    ax = sns.lineplot(x='Episode', y='No message', linewidth=2.0, data=data, ci='sd', label='Not Communicate')
+    ax = sns.lineplot(x='Episode', y='Message', linewidth=2.0, data=data, ci='sd', label='Communicate')
+
+    ax.set(ylabel='Communication probability')
+    ax.set_ylim(-0.05, 1.05)
+    ax.set_xlim(0, episodes)
+    plot_name = f"{path_plots}/{game}_{criterion}_{agent}_{name}_comms"
+
+    plt.savefig(plot_name + ".pdf")
+    plt.clf()
+    print("Finished plotting message probabilities for agent: " + repr(agent))
+
+
 def plot_state_distribution(path_plots, game, data):
     """
     This function will plot the state distribution as a heatmap.
@@ -139,6 +164,14 @@ def plot_results(games, criterion, name, episodes, opt_init, rand_prob):
         df2 = df2.iloc[::5, :]
         plot_action_probabilities(path_plots, game, episodes, 'A1', df1)
         plot_action_probabilities(path_plots, game, episodes, 'A2', df2)
+
+        # Plot the message probabilities for both agents in a separate plot.
+        df1 = pd.read_csv(f'{path_data}/agent1_comms_{name}.csv')
+        df1 = df1.iloc[::5, :]
+        df2 = pd.read_csv(f'{path_data}/agent2_comms_{name}.csv')
+        df2 = df2.iloc[::5, :]
+        plot_message_probabilities(path_plots, game, episodes, 'A1', df1)
+        plot_message_probabilities(path_plots, game, episodes, 'A2', df2)
 
         # Plot the state distribution.
         df = pd.read_csv(f'{path_data}/states_{name}.csv', header=None)

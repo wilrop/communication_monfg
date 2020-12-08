@@ -84,6 +84,13 @@ def get_action_probs(agents):
     return action_probs
 
 
+def get_comms_probs(agents):
+    message_probs = []
+    for agent in agents:
+        message_probs.append(agent.msg_strategy)
+    return message_probs
+
+
 def decay_params(agents, epsilon_decay, alpha_decay):
     """
     This function decays the parameters of the Q-learning algorithm used in each agent.
@@ -131,6 +138,15 @@ def reset(num_agents, num_actions, num_objectives, epsilon, alpha_q, alpha_theta
     return agents
 
 
+def update_comms_log(agents, message, episode, comms_log):
+    communicator = episode % len(agents)
+    if message is None:
+        comms_log[communicator][0] += 1
+    else:
+        comms_log[communicator][1] += 1
+    return comms_log
+
+
 def run_experiment(runs, episodes, criterion, payoff_matrix, opt_init):
     """
     This function will run the requested experiment.
@@ -156,6 +172,7 @@ def run_experiment(runs, episodes, criterion, payoff_matrix, opt_init):
     payoffs_log2 = []
     act_hist_log = [[], []]
     state_dist_log = np.zeros((num_actions, num_actions))
+    comms_hist_log = [[], []]
 
     start = time.time()
 
@@ -172,21 +189,26 @@ def run_experiment(runs, episodes, criterion, payoff_matrix, opt_init):
             decay_params(agents, epsilon_decay, alpha_decay)  # Decay the parameters after the episode is finished.
 
             # Get the necessary results from this episode.
-            probs = get_action_probs(agents)  # Get the current action probabilities of the agents.
-            returns = calc_returns(probs, criterion, payoff_matrix)  # Calculate the SER/ESR of the current strategies.
+            action_probs = get_action_probs(agents)  # Get the current action probabilities of the agents.
+            comms_probs = get_comms_probs(agents)
+            returns = calc_returns(action_probs, criterion, payoff_matrix)  # Calculate the SER/ESR of the current strategies.
 
             # Append the returns under the criterion and the action probabilities to the logs.
             returns1, returns2 = returns
-            probs1, probs2 = probs
+            a_probs1, a_probs2 = action_probs
+            comms_probs1, comms_probs2 = comms_probs
             payoffs_log1.append([episode, run, returns1])
             payoffs_log2.append([episode, run, returns2])
 
+            comms_hist_log[0].append([episode, run, comms_probs1[0], comms_probs1[1]])
+            comms_hist_log[1].append([episode, run, comms_probs2[0], comms_probs2[1]])
+
             if num_actions == 2:
-                act_hist_log[0].append([episode, run, probs1[0], probs1[1], 0])
-                act_hist_log[1].append([episode, run, probs2[0], probs2[1], 0])
+                act_hist_log[0].append([episode, run, a_probs1[0], a_probs1[1], 0])
+                act_hist_log[1].append([episode, run, a_probs2[0], a_probs2[1], 0])
             elif num_actions == 3:
-                act_hist_log[0].append([episode, run, probs1[0], probs1[1], probs1[2]])
-                act_hist_log[1].append([episode, run, probs2[0], probs2[1], probs2[2]])
+                act_hist_log[0].append([episode, run, a_probs1[0], a_probs1[1], a_probs1[2]])
+                act_hist_log[1].append([episode, run, a_probs2[0], a_probs2[1], a_probs2[2]])
             else:
                 raise Exception("This number of actions is not yet supported")
 
@@ -198,10 +220,10 @@ def run_experiment(runs, episodes, criterion, payoff_matrix, opt_init):
     elapsed_mins = (end - start) / 60.0
     print("Minutes elapsed: " + str(elapsed_mins))
 
-    return payoffs_log1, payoffs_log2, act_hist_log, state_dist_log
+    return payoffs_log1, payoffs_log2, act_hist_log, state_dist_log, comms_hist_log
 
 
-def save_data(path, name, payoffs_log1, payoffs_log2, act_hist_log, state_dist_log, runs, episodes):
+def save_data(path, name, payoffs_log1, payoffs_log2, act_hist_log, state_dist_log, coms_hist_log, runs, episodes):
     """
     This function will save all of the results to disk in CSV format for later analysis.
     :param path: The path to the directory in which all files will be saved.
@@ -232,6 +254,14 @@ def save_data(path, name, payoffs_log1, payoffs_log2, act_hist_log, state_dist_l
     state_dist_log /= runs * (0.1 * episodes)
     df = pd.DataFrame(state_dist_log)
     df.to_csv(f'{path}/states_{name}.csv', index=False, header=False)
+
+    columns = ['Episode', 'Trial', 'No message', 'Message']
+    df1 = pd.DataFrame(comms_hist_log[0], columns=columns)
+    df2 = pd.DataFrame(comms_hist_log[1], columns=columns)
+
+    df1.to_csv(f'{path}/agent1_comms_{name}.csv', index=False)
+    df2.to_csv(f'{path}/agent2_comms_{name}.csv', index=False)
+
     print("Finished saving data to disk")
 
 
@@ -263,9 +293,9 @@ if __name__ == "__main__":
     # Starting the experiments.
     payoff_matrix = get_payoff_matrix(game)
     data = run_experiment(runs, episodes, criterion, payoff_matrix, opt_init)
-    payoffs_log1, payoffs_log2, act_hist_log, state_dist_log = data
+    payoffs_log1, payoffs_log2, act_hist_log, state_dist_log, comms_hist_log = data
 
     # Writing the data to disk.
     path = create_game_path('data', criterion, game, opt_init, False)
     mkdir_p(path)
-    save_data(path, name, payoffs_log1, payoffs_log2, act_hist_log, state_dist_log, runs, episodes)
+    save_data(path, name, payoffs_log1, payoffs_log2, act_hist_log, state_dist_log, comms_hist_log, runs, episodes)
