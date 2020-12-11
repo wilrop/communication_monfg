@@ -16,7 +16,7 @@ def get_message(agents, episode):
     """
     communicator = episode % len(agents)  # Select the communicator in round-robin fashion.
     message = agents[communicator].communicate()
-    return message
+    return communicator, message
 
 
 def select_actions(agents, message):
@@ -54,11 +54,16 @@ def calc_returns(action_probs, criterion, payoff_matrix):
     :param payoff_matrix: The payoff matrix.
     :return: A list of expected returns.
     """
-    policy1 = action_probs[0]
-    policy2 = action_probs[1]
+    msg_policy = action_probs[0]
+    policy_m1 = action_probs[1][0]
+    policy_nm1 = action_probs[1][1]
+    policy_m2 = action_probs[2][0]
+    policy_nm2 = action_probs[2][1]
 
     if criterion == 'SER':
-        expected_returns = policy2 @ (policy1 @ payoff_matrix)  # Calculate the expected returns.
+        expected_returns_nm = msg_policy[0] * (policy_nm2 @ (policy_nm1 @ payoff_matrix))
+        expected_returns_m = msg_policy[1] * (policy_m2 @ (policy_m1 @ payoff_matrix))
+        expected_returns = expected_returns_nm + expected_returns_m
         ser1 = u1(expected_returns)  # Scalarise the expected returns.
         ser2 = u2(expected_returns)
 
@@ -66,32 +71,38 @@ def calc_returns(action_probs, criterion, payoff_matrix):
     else:
         scalarised_returns1 = scalarise_matrix(payoff_matrix, u1)  # Scalarise the possible returns.
         scalarised_returns2 = scalarise_matrix(payoff_matrix, u2)
-        esr1 = policy2 @ (policy1 @ scalarised_returns1)  # Take the expected value over them.
-        esr2 = policy2 @ (policy1 @ scalarised_returns2)
-
+        # esr1 = policy2 @ (policy1 @ scalarised_returns1)  # Take the expected value over them.
+        # esr2 = policy2 @ (policy1 @ scalarised_returns2)
+        esr1, esr2 = 0, 0
         return [esr1, esr2]
 
 
-def get_action_probs(agents):
+def get_action_probs(agents, communicator):
     """
     This function gets the current action probabilities from each agent.
     :param agents: A list of agents.
     :return: A list of their action probabilities.
     """
+    msg_probs = agents[communicator].policy_msg
     action_probs = []
+    full_probs = [msg_probs]
     for agent in agents:
-        action_probs.append(agent.policy)
-    return action_probs
+        policy_m = agent.policy_m
+        policy_nm = agent.policy_nm
+        probs = policy_nm * msg_probs[0] + policy_m * msg_probs[1]
+        action_probs.append(probs)
+        full_probs.append([policy_nm, policy_m])
+    return action_probs, full_probs
 
 
 def get_comms_probs(agents):
     message_probs = []
     for agent in agents:
-        message_probs.append(agent.msg_strategy)
+        message_probs.append(agent.policy_msg)
     return message_probs
 
 
-def decay_params(agents, epsilon_decay, alpha_decay):
+def decay_params(agents, alpha_decay):
     """
     This function decays the parameters of the Q-learning algorithm used in each agent.
     :param agents: A list of agents.
@@ -99,7 +110,6 @@ def decay_params(agents, epsilon_decay, alpha_decay):
     :return: /
     """
     for agent in agents:
-        agent.epsilon *= epsilon_decay
         agent.alpha_q *= alpha_decay
         agent.alpha_theta *= alpha_decay
 
@@ -116,7 +126,7 @@ def update(agents, message, actions, payoffs):
         agent.update(message, actions, payoffs[idx])
 
 
-def reset(num_agents, num_actions, num_objectives, epsilon, alpha_q, alpha_theta, opt=False):
+def reset(num_agents, num_actions, num_objectives, alpha_q, alpha_theta, opt=False):
     """
     Ths function will create fresh agents that can be used in a new trial.
     :param num_agents: The number of agents to create.
@@ -131,9 +141,9 @@ def reset(num_agents, num_actions, num_objectives, epsilon, alpha_q, alpha_theta
     for ag in range(num_agents):
         u, du = get_u_and_du(ag + 1)  # The utility function and derivative of the utility function for this agent.
         if criterion == 'SER':
-            new_agent = ActorCriticSER(ag, u, du, epsilon, alpha_q, alpha_theta, num_actions, num_objectives, opt)
+            new_agent = ActorCriticSER(ag, u, du, alpha_q, alpha_theta, num_actions, num_objectives, opt)
         else:
-            new_agent = ActorCriticESR(ag, u, du, epsilon, alpha_q, alpha_theta, num_actions, num_objectives, opt)
+            new_agent = ActorCriticESR(ag, u, du, alpha_q, alpha_theta, num_actions, num_objectives, opt)
         agents.append(new_agent)
     return agents
 
@@ -161,8 +171,6 @@ def run_experiment(runs, episodes, criterion, payoff_matrix, opt_init):
     num_agents = 2
     num_actions = payoff_matrix.shape[0]
     num_objectives = 2
-    epsilon = 0.1
-    epsilon_decay = 0.999
     alpha_q = 0.05
     alpha_theta = 0.05
     alpha_decay = 1
@@ -178,20 +186,20 @@ def run_experiment(runs, episodes, criterion, payoff_matrix, opt_init):
 
     for run in range(runs):
         print("Starting run: ", run)
-        agents = reset(num_agents, num_actions, num_objectives, epsilon, alpha_q, alpha_theta, opt_init)
+        agents = reset(num_agents, num_actions, num_objectives, alpha_q, alpha_theta, opt_init)
 
         for episode in range(episodes):
             # Run one episode.
-            message = get_message(agents, episode)
+            communicator, message = get_message(agents, episode)
             actions = select_actions(agents, message)
             payoffs = calc_payoffs(agents, actions, payoff_matrix)
             update(agents, message, actions, payoffs)  # Update the current strategy based on the returns.
-            decay_params(agents, epsilon_decay, alpha_decay)  # Decay the parameters after the episode is finished.
+            decay_params(agents, alpha_decay)  # Decay the parameters after the episode is finished.
 
             # Get the necessary results from this episode.
-            action_probs = get_action_probs(agents)  # Get the current action probabilities of the agents.
+            action_probs, full_probs = get_action_probs(agents, communicator)  # Get the current action probabilities of the agents.
             comms_probs = get_comms_probs(agents)
-            returns = calc_returns(action_probs, criterion, payoff_matrix)  # Calculate the SER/ESR of the current strategies.
+            returns = calc_returns(full_probs, criterion, payoff_matrix)  # Calculate the SER/ESR of the current strategies.
 
             # Append the returns under the criterion and the action probabilities to the logs.
             returns1, returns2 = returns
