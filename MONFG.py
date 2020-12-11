@@ -55,10 +55,10 @@ def calc_returns(action_probs, criterion, payoff_matrix):
     :return: A list of expected returns.
     """
     msg_policy = action_probs[0]
-    policy_m1 = action_probs[1][0]
-    policy_nm1 = action_probs[1][1]
-    policy_m2 = action_probs[2][0]
-    policy_nm2 = action_probs[2][1]
+    policy_nm1 = action_probs[1][0]
+    policy_m1 = action_probs[1][1]
+    policy_nm2 = action_probs[2][0]
+    policy_m2 = action_probs[2][1]
 
     if criterion == 'SER':
         expected_returns_nm = msg_policy[0] * (policy_nm2 @ (policy_nm1 @ payoff_matrix))
