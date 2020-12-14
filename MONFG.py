@@ -281,7 +281,7 @@ if __name__ == "__main__":
     parser.add_argument('-criterion', type=str, default='SER', choices=['SER', 'ESR'],
                         help="optimization criterion to use")
 
-    parser.add_argument('-name', type=str, default='opt-comms', help='The name under which to save the results')
+    parser.add_argument('-name', type=str, default='opt_comms', help='The name under which to save the results')
     parser.add_argument('-runs', type=int, default=100, help="number of trials")
     parser.add_argument('-episodes', type=int, default=5000, help="number of episodes")
 
