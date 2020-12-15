@@ -9,12 +9,13 @@ class ActorCriticSER:
     This class represents an agent that uses the SER optimisation criterion.
     """
 
-    def __init__(self, id, utility_function, derivative, alpha_q, alpha_theta, num_actions, num_objectives, opt=False):
+    def __init__(self, id, utility_function, derivative, alpha_msg, alpha_q, alpha_theta, num_actions, num_objectives, opt=False):
         self.id = id
         self.utility_function = utility_function
         self.derivative = derivative
         self.num_actions = num_actions
         self.num_objectives = num_objectives
+        self.alpha_msg = alpha_msg
         self.alpha_q = alpha_q
         self.alpha_theta = alpha_theta
         self.theta_m = np.zeros(num_actions)
@@ -27,13 +28,13 @@ class ActorCriticSER:
         self.op_policy = np.full(num_actions, 1.0 / num_actions)
         # optimistic initialization of Q-table
         if opt:
-            self.msg_q_table = np.ones((2, num_objectives))
+            self.msg_q_table = np.ones((self.num_messages, num_objectives)) * 20
             self.q_table_m = np.ones((num_actions, num_actions, num_objectives)) * 20
             self.q_table_nm = np.ones((num_actions, num_objectives)) * 20
         else:
-            self.msg_q_table = np.zeros((2, num_objectives))
-            self.q_table_m = np.zeros((num_actions, num_actions, num_objectives)) * 20
-            self.q_table_nm = np.zeros((num_actions, num_objectives)) * 20
+            self.msg_q_table = np.zeros((self.num_messages, num_objectives))
+            self.q_table_m = np.zeros((num_actions, num_actions, num_objectives))
+            self.q_table_nm = np.zeros((num_actions, num_objectives))
         self.communicator = False
 
     def update(self, message, actions, reward):
@@ -44,12 +45,12 @@ class ActorCriticSER:
         :return: /
         """
         self.update_msg_q_table(message, reward)
-        msg_theta, msg_policy = self.update_policy(self.policy_msg, self.theta_msg, self.msg_q_table)
+        msg_theta, msg_policy = self.update_policy(self.policy_msg, self.theta_msg, self.alpha_msg, self.msg_q_table)
         self.theta_msg = msg_theta
         self.policy_msg = msg_policy
         if message is None:
             self.update_q_table(message, self.q_table_nm, actions, reward)
-            theta_nm, policy_nm = self.update_policy(self.policy_nm, self.theta_nm, self.q_table_nm)
+            theta_nm, policy_nm = self.update_policy(self.policy_nm, self.theta_nm, self.alpha_theta, self.q_table_nm)
             self.theta_nm = theta_nm
             self.policy_nm = policy_nm
         else:
@@ -59,7 +60,7 @@ class ActorCriticSER:
             else:
                 # We have to transpose axis 0 and 1 to interpret this as the column player.
                 expected_q = self.op_policy @ self.q_table_m.transpose((1, 0, 2))
-            theta_m, policy_m = self.update_policy(self.policy_m, self.theta_m, expected_q)
+            theta_m, policy_m = self.update_policy(self.policy_m, self.theta_m, self.alpha_theta, expected_q)
             self.theta_m = theta_m
             self.policy_m = policy_m
         # self.policy = self.msg_strategy[0] * self.policy_nm + self.msg_strategy[1] * self.policy_m
@@ -89,7 +90,7 @@ class ActorCriticSER:
         else:
             q_table[actions[0], actions[1]] += self.alpha_q * (reward - q_table[actions[0], actions[1]])
 
-    def update_policy(self, policy, theta, expected_q):
+    def update_policy(self, policy, theta, alpha, expected_q):
         """
         This method will update the parameters theta of the policy.
         :return: /
@@ -99,7 +100,7 @@ class ActorCriticSER:
         grad_u = self.derivative(expected_u)  # The gradient of u
         grad_pg = softmax_grad(policy).T @ expected_q  # The gradient of the softmax function
         grad_theta = grad_u @ grad_pg.T  # The gradient of the complete function J(theta).
-        theta += self.alpha_theta * grad_theta
+        theta += alpha * grad_theta
         policy = softmax(theta)
         return theta, policy
 
@@ -138,7 +139,7 @@ class ActorCriticSER:
         else:
             # We have to transpose axis 0 and 1 to interpret this as the column player.
             expected_q = self.op_policy @ self.q_table_m.transpose((1, 0, 2))
-        theta, policy = self.update_policy(self.policy_m, self.theta_m, expected_q)
+        theta, policy = self.update_policy(self.policy_m, self.theta_m, self.alpha_theta, expected_q)
         self.theta_m = theta
         self.policy_m = policy
         return np.random.choice(range(self.num_actions), p=self.policy_m)

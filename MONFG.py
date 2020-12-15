@@ -110,6 +110,7 @@ def decay_params(agents, alpha_decay):
     :return: /
     """
     for agent in agents:
+        agent.alpha_msg *= alpha_decay
         agent.alpha_q *= alpha_decay
         agent.alpha_theta *= alpha_decay
 
@@ -126,7 +127,7 @@ def update(agents, message, actions, payoffs):
         agent.update(message, actions, payoffs[idx])
 
 
-def reset(num_agents, num_actions, num_objectives, alpha_q, alpha_theta, opt=False):
+def reset(num_agents, num_actions, num_objectives, alpha_msg, alpha_q, alpha_theta, opt=False):
     """
     Ths function will create fresh agents that can be used in a new trial.
     :param num_agents: The number of agents to create.
@@ -141,9 +142,9 @@ def reset(num_agents, num_actions, num_objectives, alpha_q, alpha_theta, opt=Fal
     for ag in range(num_agents):
         u, du = get_u_and_du(ag + 1)  # The utility function and derivative of the utility function for this agent.
         if criterion == 'SER':
-            new_agent = ActorCriticSER(ag, u, du, alpha_q, alpha_theta, num_actions, num_objectives, opt)
+            new_agent = ActorCriticSER(ag, u, du, alpha_msg, alpha_q, alpha_theta, num_actions, num_objectives, opt)
         else:
-            new_agent = ActorCriticESR(ag, u, du, alpha_q, alpha_theta, num_actions, num_objectives, opt)
+            new_agent = ActorCriticESR(ag, u, du, alpha_msg, alpha_q, alpha_theta, num_actions, num_objectives, opt)
         agents.append(new_agent)
     return agents
 
@@ -172,6 +173,7 @@ def run_experiment(runs, episodes, criterion, payoff_matrix, opt_init):
     num_actions = payoff_matrix.shape[0]
     num_objectives = 2
     alpha_q = 0.05
+    alpha_msg = 0.01
     alpha_theta = 0.05
     alpha_decay = 1
 
@@ -186,7 +188,7 @@ def run_experiment(runs, episodes, criterion, payoff_matrix, opt_init):
 
     for run in range(runs):
         print("Starting run: ", run)
-        agents = reset(num_agents, num_actions, num_objectives, alpha_q, alpha_theta, opt_init)
+        agents = reset(num_agents, num_actions, num_objectives, alpha_msg, alpha_q, alpha_theta, opt_init)
 
         for episode in range(episodes):
             # Run one episode.
