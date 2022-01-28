@@ -21,6 +21,19 @@ The last setting gives agents the chance to learn for themselves whether communi
 
 Experiments can be run from the `MONFG.py` file. There are 5 MONFGs available, having different equilibria properties under the SER optimisation criterion, using the specified non linear utility functions. You can also specify the type of experiment to run and other parameters. 
 
+## Cite
+Please use the following citation if you use these algorithms in your work.
+```
+@misc{ropke2021preference,
+      title={Preference Communication in Multi-Objective Normal-Form Games}, 
+      author={Willem Röpke and Diederik M. Roijers and Ann Nowé and Roxana Rădulescu},
+      year={2021},
+      eprint={2111.09191},
+      archivePrefix={arXiv},
+      primaryClass={cs.GT}
+}
+```
+
 ## License
 
 This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details
