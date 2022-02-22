@@ -22,6 +22,13 @@ payoff5 = np.array([[(4, 1), (1, 2), (2, 1)],
                     [(3, 1), (3, 2), (1, 2)],
                     [(1, 2), (2, 1), (1, 3)]])
 
+payoff6 = np.array([[(4, 1), (0, 2)],
+                    [(3, 1), (3, 2)]])
+
+payoff7 = np.array([[(4, 1), (0, 2), (2, 1)],
+                    [(3, 1), (3, 2), (1, 2)],
+                    [(1, 2), (2, 0), (1, 3)]])
+
 
 def u1(vector):
     """
@@ -81,6 +88,10 @@ def get_payoff_matrix(game):
         payoff_matrix = payoff4
     elif game == 'game5':
         payoff_matrix = payoff5
+    elif game == 'game6':
+        payoff_matrix = payoff6
+    elif game == 'game7':
+        payoff_matrix = payoff7
     else:
         raise Exception("The provided game does not exist.")
 
