@@ -1,13 +1,14 @@
-import time
 import argparse
-import pandas as pd
-from utils import *
-from games import *
-from no_com_agent import NoComAgent
+import time
+
 from comp_action_agent import CompActionAgent
 from coop_action_agent import CoopActionAgent
 from coop_policy_agent import CoopPolicyAgent
+from data import save_metadata, save_data
+from games import *
+from no_com_agent import NoComAgent
 from optional_com_agent import OptionalComAgent
+from utils import *
 
 
 def select_actions(agents, message):
@@ -190,6 +191,23 @@ def run_experiment(experiment, runs, episodes, rollouts, payoff_matrix, opt_init
     action_probs_log = [[] for _ in range(num_agents)]
     com_probs_log = [[] for _ in range(num_agents)]
     state_dist_log = np.zeros((num_actions, num_actions))
+    metadata = {
+        'experiment': experiment,
+        'runs': runs,
+        'episodes': episodes,
+        'rollouts': rollouts,
+        'payoff_matrix': payoff_matrix.tolist(),
+        'opt_init': opt_init,
+        'seed': seed,
+        'num_agents': num_agents,
+        'alpha_lq': alpha_lq,
+        'alpha_ltheta': alpha_ltheta,
+        'alpha_fq': alpha_fq,
+        'alpha_ftheta': alpha_ftheta,
+        'alpha_mq': alpha_mq,
+        'alpha_mtheta': alpha_mtheta,
+        'alpha_decay': alpha_decay
+    }
 
     start = time.time()
 
@@ -253,45 +271,7 @@ def run_experiment(experiment, runs, episodes, rollouts, payoff_matrix, opt_init
     elapsed_mins = (end - start) / 60.0
     print("Minutes elapsed: " + str(elapsed_mins))
 
-    return returns_log, action_probs_log, com_probs_log, state_dist_log
-
-
-def save_data(path, name, returns_log, action_probs_log, com_probs_log, state_dist_log, runs, episodes):
-    """
-    This function will save all of the results to disk in CSV format for later analysis.
-    :param path: The path to the directory in which all files will be saved.
-    :param name: The name of the experiment.
-    :param returns_log: The log for the returns.
-    :param action_probs_log: The log for the action probabilities.
-    :param action_probs_log: The log for the communication probabilities.
-    :param state_dist_log: The state distribution log in the last 10% of episodes.
-    :param runs: The number of trials that were ran.
-    :param episodes: The number of episodes in each run.
-    :return: /
-    """
-    print("Saving data to disk")
-    num_agents = len(returns_log)  # Extract the number of agents that were in the experiment.
-    num_actions = len(action_probs_log[0][0]) - 2  # Extract the number of actions that were possible in the experiment.
-    returns_columns = ['Trial', 'Episode', 'Payoff']
-    action_columns = [f'Action {a + 1}' for a in range(num_actions)]
-    action_columns = ['Trial', 'Episode'] + action_columns
-    com_columns = ['Trial', 'Episode', 'Communication', 'No communication']
-
-    for idx in range(num_agents):
-        df_r = pd.DataFrame(returns_log[idx], columns=returns_columns)
-        df_a = pd.DataFrame(action_probs_log[idx], columns=action_columns)
-        df_r.to_csv(f'{path}/{name}_{game}_A{idx + 1}_returns.csv', index=False)
-        df_a.to_csv(f'{path}/{name}_{game}_A{idx + 1}_probs.csv', index=False)
-
-    if name in ['opt_comp_action', 'opt_coop_action', 'opt_coop_policy']:
-        for idx in range(num_agents):
-            df = pd.DataFrame(com_probs_log[idx], columns=com_columns)
-            df.to_csv(f'{path}/{name}_{game}_A{idx + 1}_com.csv', index=False)
-
-    state_dist_log /= runs * (0.1 * episodes)
-    df = pd.DataFrame(state_dist_log)
-    df.to_csv(f'{path}/{name}_{game}_states.csv', index=False, header=False)
-    print("Finished saving data to disk")
+    return returns_log, action_probs_log, com_probs_log, state_dist_log, metadata
 
 
 if __name__ == "__main__":
@@ -317,9 +297,10 @@ if __name__ == "__main__":
     # Starting the experiments.
     payoff_matrix = get_payoff_matrix(game)
     data = run_experiment(experiment, runs, episodes, rollouts, payoff_matrix, opt_init)
-    returns_log, action_probs_log, com_probs_log, state_dist_log = data
+    returns_log, action_probs_log, com_probs_log, state_dist_log, metadata = data
 
     # Writing the data to disk.
     path = create_game_path('data', experiment, game, opt_init)
     mkdir_p(path)
-    save_data(path, experiment, returns_log, action_probs_log, com_probs_log, state_dist_log, runs, episodes)
+    save_metadata(path, **metadata)
+    save_data(path, experiment, game, returns_log, action_probs_log, com_probs_log, state_dist_log, runs, episodes)
