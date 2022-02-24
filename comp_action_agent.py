@@ -1,4 +1,3 @@
-import numpy as np
 from utils import *
 
 
@@ -7,12 +6,15 @@ class CompActionAgent:
     This class represents an agent that uses the SER multi-objective optimisation criterion.
     """
 
-    def __init__(self, id, u, du, alpha_q, alpha_theta, alpha_decay, num_actions, num_objectives, opt=False):
+    def __init__(self, id, u, du, alpha_lq, alpha_ltheta, alpha_fq, alpha_ftheta, alpha_decay, num_actions,
+                 num_objectives, opt=False):
         self.id = id
         self.u = u
         self.du = du
-        self.alpha_q = alpha_q
-        self.alpha_theta = alpha_theta
+        self.alpha_lq = alpha_lq
+        self.alpha_fq = alpha_fq
+        self.alpha_ltheta = alpha_ltheta
+        self.alpha_ftheta = alpha_ftheta
         self.alpha_decay = alpha_decay
         self.num_actions = num_actions
         self.num_objectives = num_objectives
@@ -37,21 +39,20 @@ class CompActionAgent:
         :param reward: The reward that was obtained by the agent.
         :return: /
         """
-        self.update_payoffs_table(actions, reward)
-        own_action = actions[self.id]
         if communicator == self.id:
-            self.update_msg_q_table(own_action, reward)
-            theta, policy = self.update_policy(self.msg_policy, self.msg_theta, self.msg_q_table)
+            self.update_msg_q_table(actions[self.id], reward)
+            theta, policy = self.update_policy(self.msg_policy, self.msg_theta, self.msg_q_table, self.alpha_ltheta)
             self.msg_theta = theta
             self.msg_policy = policy
         else:
+            self.update_payoffs_table(actions, reward)
             policy = self.counter_policies[message]
             theta = self.counter_thetas[message]
             if self.id == 0:
                 expected_q = self.payoffs_table.transpose((1, 0, 2))[message]
             else:
                 expected_q = self.payoffs_table[message]
-            theta, policy = self.update_policy(policy, theta, expected_q)
+            theta, policy = self.update_policy(policy, theta, expected_q, self.alpha_ftheta)
             self.counter_thetas[message] = theta
             self.counter_policies[message] = policy
 
@@ -64,7 +65,7 @@ class CompActionAgent:
         :param reward: The reward obtained by this agent.
         :return: /
         """
-        self.msg_q_table[action] += self.alpha_q * (reward - self.msg_q_table[action])
+        self.msg_q_table[action] += self.alpha_lq * (reward - self.msg_q_table[action])
 
     def update_payoffs_table(self, actions, reward):
         """
@@ -73,15 +74,16 @@ class CompActionAgent:
         :param reward: The reward obtained by this joint action.
         :return: /
         """
-        self.payoffs_table[actions[0], actions[1]] += self.alpha_q * (
+        self.payoffs_table[actions[0], actions[1]] += self.alpha_fq * (
                 reward - self.payoffs_table[actions[0], actions[1]])
 
-    def update_policy(self, policy, theta, expected_q):
+    def update_policy(self, policy, theta, expected_q, alpha):
         """
         This method will update the given theta parameters and policy.
         :param policy: The policy we want to update.
         :param theta: The current theta parameters for this policy.
         :param expected_q: The Q-values for this policy.
+        :param alpha: The learning rate for the policy parameters.
         :return: Updated theta parameters and policy.
         """
         policy = np.copy(policy)  # This avoids some weird numpy bugs where the policy/theta is referenced by pointer.
@@ -91,7 +93,7 @@ class CompActionAgent:
         grad_u = self.du(expected_u)  # The gradient of u
         grad_pg = softmax_grad(policy).T @ expected_q  # The gradient of the softmax function
         grad_theta = grad_u @ grad_pg.T  # The gradient of the complete function J(theta).
-        theta += self.alpha_theta * grad_theta
+        theta += alpha * grad_theta
         policy = softmax(theta)
         return theta, policy
 
@@ -100,8 +102,10 @@ class CompActionAgent:
         This method will update the internal parameters of the agent.
         :return: /
         """
-        self.alpha_q *= self.alpha_decay
-        self.alpha_theta *= self.alpha_decay
+        self.alpha_lq *= self.alpha_decay
+        self.alpha_ltheta *= self.alpha_decay
+        self.alpha_fq *= self.alpha_decay
+        self.alpha_ftheta *= self.alpha_decay
 
     def select_action(self, message):
         """
