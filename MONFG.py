@@ -85,7 +85,7 @@ def calc_com_probs(messages, rollouts):
     """
     com = sum(message is not None for message in messages)
     no_com = (rollouts - com)
-    return [com/rollouts, no_com/rollouts]
+    return [com / rollouts, no_com / rollouts]
 
 
 def update(agents, communicator, message, actions, payoffs):
@@ -102,16 +102,20 @@ def update(agents, communicator, message, actions, payoffs):
         agent.update(communicator, message, actions, payoffs[idx])
 
 
-def reset(experiment, num_agents, num_actions, num_objectives, alpha_q, alpha_theta, alpha_msg, alpha_decay, opt=False):
+def reset(experiment, num_agents, num_actions, num_objectives, alpha_lq, alpha_ltheta, alpha_fq, alpha_ftheta, alpha_mq,
+          alpha_mtheta, alpha_decay, opt=False):
     """
     This function will create new agents that can be used in a new trial.
     :param experiment: The type of experiments we are running.
     :param num_agents: The number of agents to create.
     :param num_actions: The number of actions each agent can take.
     :param num_objectives: The number of objectives they have.
-    :param alpha_q: The learning rate for the Q values.
-    :param alpha_theta: The learning rate for theta.
-    :param alpha_msg: The learning rate for learning a messaging strategy in the optional communication experiments.
+    :param alpha_lq: The learning rate for the leader's Q values.
+    :param alpha_ltheta: The learning rate for leader's theta.
+    :param alpha_fq: The learning rate for the follower's Q values.
+    :param alpha_ftheta: The learning rate for the follower's theta.
+    :param alpha_mq: The learning rate for Q-values for communication in the optional communication experiments.
+    :param alpha_mtheta: The learning rate for learning a messaging strategy in the optional communication experiments.
     :param alpha_decay: The learning rate decay.
     :param opt: A boolean that decides on optimistic initialization of the Q-tables.
     :return:
@@ -120,27 +124,33 @@ def reset(experiment, num_agents, num_actions, num_objectives, alpha_q, alpha_th
     for ag in range(num_agents):
         u, du = get_u_and_du(ag + 1)  # The utility function and derivative of the utility function for this agent.
         if experiment == 'no_com':
-            new_agent = NoComAgent(ag, u, du, alpha_q, alpha_theta, alpha_decay, num_actions, num_objectives, opt)
+            new_agent = NoComAgent(ag, u, du, alpha_lq, alpha_ltheta, alpha_decay, num_actions, num_objectives, opt)
         elif experiment == 'comp_action':
-            new_agent = CompActionAgent(ag, u, du, alpha_q, alpha_theta, alpha_decay, num_actions, num_objectives, opt)
+            new_agent = CompActionAgent(ag, u, du, alpha_lq, alpha_ltheta, alpha_fq, alpha_ftheta, alpha_decay,
+                                        num_actions, num_objectives, opt)
         elif experiment == 'coop_action':
-            new_agent = CoopActionAgent(ag, u, du, alpha_q, alpha_theta, alpha_decay, num_actions, num_objectives, opt)
+            new_agent = CoopActionAgent(ag, u, du, alpha_lq, alpha_ltheta, alpha_decay, num_actions, num_objectives,
+                                        opt)
         elif experiment == 'coop_policy':
-            new_agent = CoopPolicyAgent(ag, u, du, alpha_q, alpha_theta, alpha_decay, num_actions, num_objectives, opt)
+            new_agent = CoopPolicyAgent(ag, u, du, alpha_lq, alpha_ltheta, alpha_decay, num_actions, num_objectives,
+                                        opt)
         elif experiment == 'opt_comp_action':
-            no_com_agent = NoComAgent(ag, u, du, alpha_q, alpha_theta, alpha_decay, num_actions, num_objectives, opt)
-            com_agent = CompActionAgent(ag, u, du, alpha_q, alpha_theta, alpha_decay, num_actions, num_objectives, opt)
-            new_agent = OptionalComAgent(no_com_agent, com_agent, ag, u, du, alpha_q, alpha_msg, alpha_decay,
+            no_com_agent = NoComAgent(ag, u, du, alpha_lq, alpha_ltheta, alpha_decay, num_actions, num_objectives, opt)
+            com_agent = CompActionAgent(ag, u, du, alpha_lq, alpha_ltheta, alpha_fq, alpha_ftheta, alpha_decay,
+                                        num_actions, num_objectives, opt)
+            new_agent = OptionalComAgent(no_com_agent, com_agent, ag, u, du, alpha_mq, alpha_mtheta, alpha_decay,
                                          num_objectives, opt)
         elif experiment == 'opt_coop_action':
-            no_com_agent = NoComAgent(ag, u, du, alpha_q, alpha_theta, alpha_decay, num_actions, num_objectives, opt)
-            com_agent = CoopActionAgent(ag, u, du, alpha_q, alpha_theta, alpha_decay, num_actions, num_objectives, opt)
-            new_agent = OptionalComAgent(no_com_agent, com_agent, ag, u, du, alpha_q, alpha_msg, alpha_decay,
+            no_com_agent = NoComAgent(ag, u, du, alpha_lq, alpha_ltheta, alpha_decay, num_actions, num_objectives, opt)
+            com_agent = CoopActionAgent(ag, u, du, alpha_lq, alpha_ltheta, alpha_decay, num_actions, num_objectives,
+                                        opt)
+            new_agent = OptionalComAgent(no_com_agent, com_agent, ag, u, du, alpha_mq, alpha_mtheta, alpha_decay,
                                          num_objectives, opt)
         elif experiment == 'opt_coop_policy':
-            no_com_agent = NoComAgent(ag, u, du, alpha_q, alpha_theta, alpha_decay, num_actions, num_objectives, opt)
-            com_agent = CoopPolicyAgent(ag, u, du, alpha_q, alpha_theta, alpha_decay, num_actions, num_objectives, opt)
-            new_agent = OptionalComAgent(no_com_agent, com_agent, ag, u, du, alpha_q, alpha_msg, alpha_decay,
+            no_com_agent = NoComAgent(ag, u, du, alpha_lq, alpha_ltheta, alpha_decay, num_actions, num_objectives, opt)
+            com_agent = CoopPolicyAgent(ag, u, du, alpha_lq, alpha_ltheta, alpha_decay, num_actions, num_objectives,
+                                        opt)
+            new_agent = OptionalComAgent(no_com_agent, com_agent, ag, u, du, alpha_mq, alpha_mtheta, alpha_decay,
                                          num_objectives, opt)
         else:
             raise Exception('Something went wrong!')
@@ -148,7 +158,7 @@ def reset(experiment, num_agents, num_actions, num_objectives, alpha_q, alpha_th
     return agents
 
 
-def run_experiment(experiment, runs, episodes, rollouts, payoff_matrix, opt_init):
+def run_experiment(experiment, runs, episodes, rollouts, payoff_matrix, opt_init, seed=1):
     """
     This function will run the requested experiment.
     :param experiment: The type of experiment we are running.
@@ -157,15 +167,22 @@ def run_experiment(experiment, runs, episodes, rollouts, payoff_matrix, opt_init
     :param rollouts: The rollout period for the policies.
     :param payoff_matrix: The payoff matrix for the game.
     :param opt_init: A boolean that decides on optimistic initialization of the Q-tables.
+    :param seed: An optional seed for random number generation.
     :return: A log of payoffs, a log for action probabilities for both agents and a log of the state distribution.
     """
+    if seed is not None:
+        np.random.seed(seed=seed)
+
     # Setting hyperparameters.
     num_agents = 2
     num_actions = payoff_matrix.shape[0]
     num_objectives = 2
-    alpha_q = 0.01
-    alpha_theta = 0.01
-    alpha_msg = 0.01
+    alpha_lq = 0.01
+    alpha_ltheta = 0.01
+    alpha_fq = 0.1
+    alpha_ftheta = 0.1
+    alpha_mq = 0.01
+    alpha_mtheta = 0.01
     alpha_decay = 1
 
     # Setting up lists containing the results.
@@ -178,8 +195,8 @@ def run_experiment(experiment, runs, episodes, rollouts, payoff_matrix, opt_init
 
     for run in range(runs):
         print("Starting run: ", run)
-        agents = reset(experiment, num_agents, num_actions, num_objectives, alpha_q, alpha_theta, alpha_msg,
-                       alpha_decay, opt_init)
+        agents = reset(experiment, num_agents, num_actions, num_objectives, alpha_lq, alpha_ltheta, alpha_fq,
+                       alpha_ftheta, alpha_mq, alpha_mtheta, alpha_decay, opt_init)
 
         for episode in range(episodes):
             # We keep the actions and payoffs of this episode so that we can later calculate the SER.
@@ -280,18 +297,11 @@ def save_data(path, name, returns_log, action_probs_log, com_probs_log, state_di
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--game', type=str, default='game1', choices=['game1', 'game2', 'game3', 'game4', 'game5'],
-                        help="which MONFG game to play")
-    parser.add_argument('--experiment', type=str, default='no_com',
-                        choices=['no_com', 'comp_action', 'coop_action', 'coop_policy', 'opt_comp_action',
-                                 'opt_coop_action', 'opt_coop_policy'],
-                        help='The experiment to run.')
-
+    parser.add_argument('--game', type=str, default='game1', help="which MONFG game to play")
+    parser.add_argument('--experiment', type=str, default='no_com', help='The experiment to run.')
     parser.add_argument('--runs', type=int, default=100, help="number of trials")
     parser.add_argument('--episodes', type=int, default=5000, help="number of episodes")
     parser.add_argument('--rollouts', type=int, default=100, help="Rollout period for the policies")
-
-    # Optimistic initialization can encourage exploration.
     parser.add_argument('--opt_init', action='store_true', help="optimistic initialization")
 
     args = parser.parse_args()
