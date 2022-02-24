@@ -1,4 +1,3 @@
-import numpy as np
 from utils import *
 
 
@@ -7,7 +6,8 @@ class OptionalComAgent:
     This class represents an agent that uses the SER optimisation criterion.
     """
 
-    def __init__(self, no_com_agent, com_agent, id, u, du, alpha_q, alpha_msg, alpha_decay, num_objectives, opt=False):
+    def __init__(self, no_com_agent, com_agent, id, u, du, alpha_q, alpha_theta, alpha_decay, num_objectives,
+                 opt=False):
         self.no_com_agent = no_com_agent
         self.com_agent = com_agent
         self.id = id
@@ -16,7 +16,7 @@ class OptionalComAgent:
         self.num_messages = 2  # Only two types of communication: send a message or don't send a message
         self.num_objectives = num_objectives
         self.alpha_q = alpha_q
-        self.alpha_msg = alpha_msg
+        self.alpha_theta = alpha_theta
         self.alpha_decay = alpha_decay
         self.theta = np.zeros(self.num_messages)
         self.policy = softmax(self.theta)
@@ -38,7 +38,7 @@ class OptionalComAgent:
         :return: /
         """
         self.update_q_table(message, reward)
-        theta, policy = self.update_policy(self.policy, self.theta, self.alpha_msg, self.q_table)
+        theta, policy = self.update_policy(self.policy, self.theta, self.alpha_theta, self.q_table)
         self.theta = theta
         self.policy = policy
         if message is None:
@@ -85,7 +85,7 @@ class OptionalComAgent:
         :return: /
         """
         self.alpha_q *= self.alpha_decay
-        self.alpha_msg *= self.alpha_decay
+        self.alpha_theta *= self.alpha_decay
 
     def get_message(self):
         """
