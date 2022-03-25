@@ -13,18 +13,20 @@ payoff2 = np.array([[(4, 0),  (2, 2)],
 payoff3 = np.array([[(4, 0), (3, 1)],
                     [(3, 1), (2, 2)]])
 
-# Game 4: A two action game. There are NE under SER for (L,L) and (M,M).
+# Game 4: A two action game. (M, M) is a pure NE under SER.
 payoff4 = np.array([[(4, 1), (1, 2)],
                     [(3, 1), (3, 2)]])
 
-# Game 5: A three action game. There are  NE under SER for (L,L), (M,M) and (R,R).
+# Game 5: A three action game. (M, M) is a pure NE under SER.
 payoff5 = np.array([[(4, 1), (1, 2), (2, 1)],
                     [(3, 1), (3, 2), (1, 2)],
                     [(1, 2), (2, 1), (1, 3)]])
 
+# Game 4 updated: There are two NE under SER: (L,L) and (M,M).
 payoff6 = np.array([[(4, 1), (1, 1.5)],
                     [(3, 1), (3, 2)]])
 
+# Game 5 updated: There are three NE under SER: (L,L), (M,M) and (R,R).
 payoff7 = np.array([[(4, 1), (1, 1.5), (2, 1)],
                     [(3, 1), (3, 2), (1, 2)],
                     [(1, 2), (2, 1.5), (1.5, 3)]])
