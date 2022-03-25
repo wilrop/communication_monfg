@@ -189,8 +189,7 @@ def plot_results(games, name, filetype, opt_init):
         min_x = df1['Episode'].min()
         max_x = df1['Episode'].max() + 1
         min_y = 0
-        max_payoff = df1['Payoff'].max()
-        max_y = max_payoff - (max_payoff % 10) + 10
+        max_y = 17.5
         df1 = df1.iloc[::5, :]
         df2 = df2.iloc[::5, :]
         plot_returns(path_plots, filetype, game, name, df1, df2, min_x=min_x, max_x=max_x, min_y=min_y, max_y=max_y)
